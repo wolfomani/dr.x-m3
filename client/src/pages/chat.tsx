@@ -115,7 +115,7 @@ export default function Chat() {
     id: msg.id,
     content: msg.content,
     isUser: msg.sender === "user",
-    timestamp: msg.created_at?.toISOString() || new Date().toISOString(),
+    timestamp: msg.created_at?.toString() || new Date().toISOString(),
   }))
 
   if (!chatId) {

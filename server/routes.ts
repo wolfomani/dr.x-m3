@@ -1,197 +1,183 @@
-import type { Express } from "express"
-import { createServer, type Server } from "http"
-import { storage } from "./storage"
+import type { Request, Response } from "express"
 import { z } from "zod"
+import { db } from "./storage"
+import { chats, messages } from "../shared/schema"
+import { eq } from "drizzle-orm"
 
-const sendMessageSchema = z.object({
-  content: z.string().min(1),
-  chatId: z.number().int().positive(),
-  useDeepThink: z.boolean().optional().default(false),
-})
-
+// Validation schemas
 const createChatSchema = z.object({
   title: z.string().min(1),
   personality: z.string().optional(),
-  userId: z.number().int().positive().optional(),
+  userId: z.number().optional(),
 })
 
-export async function registerRoutes(app: Express): Promise<Server> {
+const sendMessageSchema = z.object({
+  content: z.string().min(1),
+  useDeepThink: z.boolean().default(false),
+})
+
+// DeepSeek API configuration
+const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY
+
+async function callDeepSeekAPI(content: string, useDeepThink = false) {
+  if (!DEEPSEEK_API_KEY) {
+    throw new Error("DEEPSEEK_API_KEY is not configured")
+  }
+
+  const model = useDeepThink ? "deepseek-reasoner" : "deepseek-chat"
+
+  const response = await fetch(DEEPSEEK_API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        {
+          role: "system",
+          content: "أنت مساعد ذكي يتحدث العربية ويساعد المستخدمين في مختلف المواضيع. كن مفيداً ومهذباً.",
+        },
+        {
+          role: "user",
+          content,
+        },
+      ],
+      max_tokens: 4000,
+      temperature: 0.7,
+    }),
+  })
+
+  if (!response.ok) {
+    const errorData = await response.text()
+    throw new Error(`DeepSeek API error: ${response.status} - ${errorData}`)
+  }
+
+  const data = await response.json()
+  return {
+    content: data.choices[0]?.message?.content || "عذراً، لم أتمكن من الحصول على رد.",
+    model: model,
+    usage: data.usage,
+  }
+}
+
+export function registerRoutes(app: any) {
   // Create a new chat
-  app.post("/api/chats", async (req, res) => {
+  app.post("/api/chats", async (req: Request, res: Response) => {
     try {
       const { title, personality, userId } = createChatSchema.parse(req.body)
 
-      const chat = await storage.createChat({
-        title,
-        personality,
-        user_id: userId,
-      })
+      const [chat] = await db
+        .insert(chats)
+        .values({
+          title,
+          personality,
+          user_id: userId,
+          created_at: new Date(),
+        })
+        .returning()
 
       res.json(chat)
     } catch (error) {
       console.error("Error creating chat:", error)
-      res.status(500).json({ message: "Failed to create chat" })
+      res.status(500).json({ error: "Failed to create chat" })
     }
   })
 
   // Get chat by ID
-  app.get("/api/chats/:chatId", async (req, res) => {
+  app.get("/api/chats/:chatId", async (req: Request, res: Response) => {
     try {
       const chatId = Number.parseInt(req.params.chatId)
-      const chat = await storage.getChat(chatId)
+
+      const [chat] = await db.select().from(chats).where(eq(chats.id, chatId))
 
       if (!chat) {
-        return res.status(404).json({ message: "Chat not found" })
+        return res.status(404).json({ error: "Chat not found" })
       }
 
       res.json(chat)
     } catch (error) {
       console.error("Error fetching chat:", error)
-      res.status(500).json({ message: "Failed to fetch chat" })
+      res.status(500).json({ error: "Failed to fetch chat" })
     }
   })
 
   // Get messages for a chat
-  app.get("/api/chats/:chatId/messages", async (req, res) => {
+  app.get("/api/chats/:chatId/messages", async (req: Request, res: Response) => {
     try {
       const chatId = Number.parseInt(req.params.chatId)
-      const messages = await storage.getMessagesByChat(chatId)
-      res.json(messages)
+
+      const chatMessages = await db
+        .select()
+        .from(messages)
+        .where(eq(messages.chat_id, chatId))
+        .orderBy(messages.created_at)
+
+      res.json(chatMessages)
     } catch (error) {
       console.error("Error fetching messages:", error)
-      res.status(500).json({ message: "Failed to fetch messages" })
+      res.status(500).json({ error: "Failed to fetch messages" })
     }
   })
 
-  // Send a message and get AI response
-  app.post("/api/chats/:chatId/messages", async (req, res) => {
+  // Send a message
+  app.post("/api/chats/:chatId/messages", async (req: Request, res: Response) => {
     try {
       const chatId = Number.parseInt(req.params.chatId)
-      const { content, useDeepThink } = sendMessageSchema.parse({
-        ...req.body,
-        chatId,
-      })
+      const { content, useDeepThink } = sendMessageSchema.parse(req.body)
 
+      // Save user message
+      const [userMessage] = await db
+        .insert(messages)
+        .values({
+          content,
+          sender: "user",
+          chat_id: chatId,
+          created_at: new Date(),
+        })
+        .returning()
+
+      // Get AI response
       const startTime = Date.now()
-
-      // Store user message
-      const userMessage = await storage.createMessage({
-        content,
-        sender: "user",
-        chat_id: chatId,
-      })
-
-      // Call DeepSeek API
-      const apiKey = process.env.DEEPSEEK_API_KEY || "sk-94af74f2b4fe4e98a8b1ec389dc6ec4b"
-      if (!apiKey) {
-        return res.status(500).json({ message: "DeepSeek API key not configured" })
-      }
-
-      // Get conversation history
-      const messages = await storage.getMessagesByChat(chatId)
-
-      // Prepare enhanced prompt based on DeepSeek-R1 recommendations
-      let enhancedContent = content
-
-      // Check if it's a math problem and add specific instructions
-      const isMathProblem =
-        /[\d+\-*/=$$$$]/g.test(content) || /رياضي|حساب|معادلة|math|calculate|solve|equation/i.test(content)
-
-      if (isMathProblem) {
-        enhancedContent = `${content}\n\nPlease reason step by step, and put your final answer within \\boxed{}.`
-      }
-
-      // Force thinking pattern for DeepSeek-R1 if useDeepThink is enabled
-      if (useDeepThink) {
-        enhancedContent = `<Thinking>\n\n</Thinking>\n\n${enhancedContent}`
-      }
-
-      // Prepare messages for DeepSeek API (NO system prompt as per R1 guidelines)
-      const apiMessages = [
-        ...messages.slice(0, -1).map((msg) => ({
-          role: msg.sender === "user" ? "user" : "assistant",
-          content: msg.content,
-        })),
-        {
-          role: "user",
-          content: enhancedContent,
-        },
-      ]
-
-      // Use deepseek-reasoner model for deep thinking, otherwise regular chat
-      const model = useDeepThink ? "deepseek-reasoner" : "deepseek-chat"
-
-      const deepseekResponse = await fetch("https://api.deepseek.com/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: model,
-          messages: apiMessages,
-          temperature: 0.6, // Recommended temperature for DeepSeek-R1
-          max_tokens: 32768, // Allow long reasoning chains
-          stream: false,
-        }),
-      })
-
-      if (!deepseekResponse.ok) {
-        const errorText = await deepseekResponse.text()
-        console.error("DeepSeek API error:", errorText)
-        return res.status(500).json({ message: "Failed to get AI response" })
-      }
-
-      const deepseekData = await deepseekResponse.json()
-      let aiResponse = deepseekData.choices[0].message.content
-
-      // Process the response if it contains thinking pattern
-      if (aiResponse.includes("<Thinking>") && aiResponse.includes("</Thinking>")) {
-        // Extract thinking and final response
-        const thinkMatch = aiResponse.match(/<Thinking>([\s\S]*?)<\/Thinking>/)
-        const thinking = thinkMatch ? thinkMatch[1].trim() : ""
-        const finalResponse = aiResponse.replace(/<Thinking>[\s\S]*?<\/Thinking>/, "").trim()
-
-        // Store the complete response including thinking process
-        aiResponse = finalResponse || aiResponse
-      }
-
+      const aiResponse = await callDeepSeekAPI(content, useDeepThink)
       const executionTime = Date.now() - startTime
 
-      // Store AI response
-      const aiMessage = await storage.createMessage({
-        content: aiResponse,
-        sender: "assistant",
-        model_used: model,
-        execution_time: executionTime,
-        chat_id: chatId,
+      // Save AI message
+      const [aiMessage] = await db
+        .insert(messages)
+        .values({
+          content: aiResponse.content,
+          sender: "assistant",
+          model_used: aiResponse.model,
+          execution_time: executionTime,
+          chat_id: chatId,
+          created_at: new Date(),
+        })
+        .returning()
+
+      res.json({
+        userMessage,
+        aiMessage,
       })
-
-      // Auto-generate chat title if it's the first exchange
-      if (messages.length <= 1) {
-        const title = content.length > 50 ? content.substring(0, 47) + "..." : content
-        await storage.updateChatTitle(chatId, title)
-      }
-
-      res.json({ userMessage, aiMessage })
     } catch (error) {
-      console.error("Error processing message:", error)
-      res.status(500).json({ message: "Failed to process message" })
+      console.error("Error sending message:", error)
+      res.status(500).json({ error: "Failed to send message" })
     }
   })
 
-  // Clear chat history
-  app.delete("/api/chats/:chatId/messages", async (req, res) => {
+  // Clear messages for a chat
+  app.delete("/api/chats/:chatId/messages", async (req: Request, res: Response) => {
     try {
       const chatId = Number.parseInt(req.params.chatId)
-      await storage.clearMessages(chatId)
-      res.json({ message: "Chat history cleared" })
+
+      await db.delete(messages).where(eq(messages.chat_id, chatId))
+
+      res.json({ success: true })
     } catch (error) {
       console.error("Error clearing messages:", error)
-      res.status(500).json({ message: "Failed to clear chat history" })
+      res.status(500).json({ error: "Failed to clear messages" })
     }
   })
-
-  const httpServer = createServer(app)
-  return httpServer
 }

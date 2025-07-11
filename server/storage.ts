@@ -1,10 +1,15 @@
-import { drizzle } from "drizzle-orm/neon-http"
-import { neon } from "@neondatabase/serverless"
+import { drizzle } from "drizzle-orm/neon-serverless"
+import { Pool } from "@neondatabase/serverless"
+import * as schema from "../shared/schema"
 import { eq, desc } from "drizzle-orm"
-import { messages, chats, type Message, type InsertMessage, type Chat, type InsertChat } from "../shared/schema"
+import type { Message, InsertMessage, Chat, InsertChat } from "../shared/schema"
 
-const sql = neon(process.env.DATABASE_URL!)
-const db = drizzle(sql)
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL environment variable is required")
+}
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+export const db = drizzle(pool, { schema })
 
 export interface IStorage {
   createChat(chat: InsertChat): Promise<Chat>
@@ -18,34 +23,42 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   async createChat(insertChat: InsertChat): Promise<Chat> {
-    const [chat] = await db.insert(chats).values(insertChat).returning()
+    const [chat] = await db.insert(schema.chats).values(insertChat).returning()
     return chat
   }
 
   async getChat(id: number): Promise<Chat | undefined> {
-    const [chat] = await db.select().from(chats).where(eq(chats.id, id))
+    const [chat] = await db.select().from(schema.chats).where(eq(schema.chats.id, id))
     return chat
   }
 
   async getChatsByUser(userId: number): Promise<Chat[]> {
-    return await db.select().from(chats).where(eq(chats.user_id, userId)).orderBy(desc(chats.created_at))
+    return await db
+      .select()
+      .from(schema.chats)
+      .where(eq(schema.chats.user_id, userId))
+      .orderBy(desc(schema.chats.created_at))
   }
 
   async createMessage(insertMessage: InsertMessage): Promise<Message> {
-    const [message] = await db.insert(messages).values(insertMessage).returning()
+    const [message] = await db.insert(schema.messages).values(insertMessage).returning()
     return message
   }
 
   async getMessagesByChat(chatId: number): Promise<Message[]> {
-    return await db.select().from(messages).where(eq(messages.chat_id, chatId)).orderBy(messages.created_at)
+    return await db
+      .select()
+      .from(schema.messages)
+      .where(eq(schema.messages.chat_id, chatId))
+      .orderBy(schema.messages.created_at)
   }
 
   async clearMessages(chatId: number): Promise<void> {
-    await db.delete(messages).where(eq(messages.chat_id, chatId))
+    await db.delete(schema.messages).where(eq(schema.messages.chat_id, chatId))
   }
 
   async updateChatTitle(chatId: number, title: string): Promise<void> {
-    await db.update(chats).set({ title }).where(eq(chats.id, chatId))
+    await db.update(schema.chats).set({ title }).where(eq(schema.chats.id, chatId))
   }
 }
 
