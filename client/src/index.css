@@ -1,0 +1,451 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Core Colors - Premium Dark Theme */
+    --background: 224 15% 5%;
+    --foreground: 225 25% 96%;
+    --surface: 224 15% 7%;
+    --surface-elevated: 224 15% 9%;
+    --surface-hover: 224 15% 11%;
+    
+    /* Brand Colors - dr.x Purple Gradient */
+    --primary: 258 90% 66%;
+    --primary-hover: 258 85% 72%;
+    --primary-subtle: 258 60% 20%;
+    --primary-foreground: 224 15% 5%;
+    
+    /* Accent & Interactive */
+    --accent: 224 15% 12%;
+    --accent-foreground: 225 25% 96%;
+    --accent-hover: 224 15% 15%;
+    --muted: 224 12% 18%;
+    --muted-foreground: 224 8% 65%;
+    
+    /* Card & Popover */
+    --card: 224 15% 7%;
+    --card-foreground: 225 25% 96%;
+    --popover: 224 15% 8%;
+    --popover-foreground: 225 25% 96%;
+    
+    /* Secondary Elements */
+    --secondary: 224 15% 12%;
+    --secondary-foreground: 225 25% 96%;
+    --secondary-hover: 224 15% 15%;
+    
+    /* Status Colors */
+    --destructive: 0 65% 55%;
+    --destructive-foreground: 225 25% 96%;
+    --success: 142 70% 45%;
+    --warning: 38 90% 55%;
+    --info: 200 80% 50%;
+    
+    /* Borders & Inputs */
+    --border: 224 15% 20%;
+    --border-subtle: 224 10% 25%;
+    --input: 224 15% 12%;
+    --input-hover: 224 15% 15%;
+    --ring: 258 90% 66%;
+    
+    /* Chat Specific */
+    --chat-user: 258 90% 66%;
+    --chat-ai: 224 15% 12%;
+    --chat-bubble-user: 258 90% 66%;
+    --chat-bubble-ai: 224 15% 12%;
+    --chat-text-user: 224 15% 5%;
+    --chat-text-ai: 225 25% 96%;
+    
+    /* Glass Effects */
+    --glass-bg: 225 25% 96% / 0.03;
+    --glass-border: 225 25% 96% / 0.1;
+    --glass-strong: 225 25% 96% / 0.08;
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(258 90% 66%) 0%, hsl(258 85% 72%) 100%);
+    --gradient-surface: linear-gradient(135deg, hsl(224 15% 5%) 0%, hsl(224 15% 7%) 50%, hsl(224 15% 5%) 100%);
+    --gradient-glow: radial-gradient(600px circle at var(--mouse-x, 0) var(--mouse-y, 0), hsl(258 90% 66% / 0.1), transparent 40%);
+    
+    --radius: 16px;
+    --radius-lg: 20px;
+    --radius-xl: 24px;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    background: hsl(var(--background));
+    background-image: 
+      radial-gradient(circle at 20% 20%, hsl(258 90% 66% / 0.03) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, hsl(258 90% 66% / 0.02) 0%, transparent 50%);
+  }
+
+  code {
+    font-family: 'JetBrains Mono', 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+  }
+}
+
+@layer components {
+  /* Glass Morphism Effects */
+  .glass {
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    background: hsl(var(--glass-bg));
+    border: 1px solid hsl(var(--glass-border));
+  }
+  
+  .glass-strong {
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+    background: hsl(var(--glass-strong));
+    border: 1px solid hsl(var(--glass-border));
+  }
+
+  .glass-card {
+    @apply glass rounded-2xl;
+    box-shadow: 
+      0 4px 16px -4px hsl(var(--background) / 0.3),
+      0 0 0 1px hsl(var(--glass-border));
+  }
+
+  /* Premium Button Styles */
+  .btn-primary {
+    @apply text-primary-foreground;
+    background: var(--gradient-primary);
+    box-shadow: 
+      0 2px 8px -2px hsl(var(--primary) / 0.3),
+      0 0 0 1px hsl(var(--primary) / 0.2);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 
+      0 4px 16px -4px hsl(var(--primary) / 0.4),
+      0 0 0 1px hsl(var(--primary) / 0.3);
+  }
+
+  .btn-ghost {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .btn-ghost:hover {
+    background: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
+  }
+
+  /* Chat Bubbles */
+  .chat-bubble-user {
+    border-radius: 24px;
+    border-bottom-right-radius: 8px;
+    padding: 16px 24px;
+    background: var(--gradient-primary);
+    color: hsl(var(--chat-text-user));
+    box-shadow: 0 2px 12px -4px hsl(var(--primary) / 0.3);
+  }
+
+  .chat-bubble-ai {
+    border-radius: 24px;
+    border-bottom-left-radius: 8px;
+    padding: 16px 24px;
+    background: hsl(var(--chat-bubble-ai));
+    color: hsl(var(--chat-text-ai));
+    border: 1px solid hsl(var(--border));
+    box-shadow: 0 1px 8px -2px hsl(var(--background) / 0.2);
+  }
+
+  /* Avatar Styles */
+  .avatar-user {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 14px;
+    background: var(--gradient-primary);
+    color: hsl(var(--primary-foreground));
+    box-shadow: 0 2px 8px -2px hsl(var(--primary) / 0.3);
+  }
+
+  .avatar-ai {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: hsl(var(--surface-elevated));
+    border: 1px solid hsl(var(--border));
+    box-shadow: 0 1px 6px -1px hsl(var(--background) / 0.1);
+  }
+
+  /* Input Styles */
+  .input-modern {
+    background: hsl(var(--input));
+    border: 1px solid hsl(var(--border));
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 3px -1px hsl(var(--background) / 0.1);
+  }
+  
+  .input-modern:hover {
+    border-color: hsl(var(--border-subtle));
+  }
+  
+  .input-modern:focus {
+    border-color: hsl(var(--primary));
+    box-shadow: 
+      0 0 0 3px hsl(var(--ring) / 0.1),
+      0 1px 6px -1px hsl(var(--background) / 0.2);
+  }
+
+  /* Animation Classes */
+  .animate-fade-in {
+    animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .animate-glow {
+    animation: glow 2s ease-in-out infinite alternate;
+  }
+
+  /* Message Animations */
+  .message-enter {
+    animation: messageEnter 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .message-exit {
+    animation: messageExit 0.3s cubic-bezier(0.4, 0, 1, 0.5);
+  }
+
+  /* Typing Indicator */
+  .typing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .typing-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: hsl(var(--primary));
+    animation: typingDot 1.4s infinite ease-in-out;
+  }
+
+  .typing-dot:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+
+  .typing-dot:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+
+  /* Loading Spinner */
+  .spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid hsl(var(--primary) / 0.2);
+    border-top: 2px solid hsl(var(--primary));
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  /* Scrollbar Styles */
+  .scrollbar-custom {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted)) transparent;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted));
+    border-radius: 3px;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground));
+  }
+
+  .scrollbar-hidden {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Gradient Text */
+  .text-gradient {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent;
+  }
+}
+
+/* Keyframe Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes glow {
+  from {
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.2);
+  }
+  to {
+    box-shadow: 0 0 30px hsl(var(--primary) / 0.4);
+  }
+}
+
+@keyframes messageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes messageExit {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+@keyframes typingDot {
+  0%, 60%, 100% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  30% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* RTL Support */
+[dir="rtl"] .space-x-reverse > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-x-reverse: 1;
+}
+
+[dir="rtl"] .chat-bubble-user {
+  border-radius: 24px;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 24px;
+}
+
+[dir="rtl"] .chat-bubble-ai {
+  border-radius: 24px;
+  border-bottom-right-radius: 8px;
+  border-bottom-left-radius: 24px;
+}
+
+/* Responsive Design */
+@media (max-width: 640px) {
+  .chat-bubble-user,
+  .chat-bubble-ai {
+    padding: 12px 16px;
+  }
+  
+  .avatar-user,
+  .avatar-ai {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+}
+
+/* Dark Mode Enhancements */
+@media (prefers-color-scheme: dark) {
+  body {
+    color-scheme: dark;
+  }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+  :root {
+    --border: 224 15% 30%;
+    --muted: 224 15% 25%;
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
